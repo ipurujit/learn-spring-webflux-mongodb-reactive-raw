@@ -10,10 +10,10 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Repository;
 import ota.reactive.room.models.Room;
-import ota.reactive.room.subscribers.MongoDBReactiveSubscriber.ObservableSubscriber;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static com.mongodb.client.model.Filters.eq;
@@ -39,65 +39,62 @@ public class RoomRepository implements BaseRepository<Room, ObjectId> {
     }
 
     @Override
-    public Room save(Room room) throws Throwable {
+    public Mono<Room> save(Room room) {
         room.setId(new ObjectId());
-        ObservableSubscriber subscriber = new ObservableSubscriber<>();
-        collection.insertOne(room).subscribe(subscriber);
-        subscriber.await();
-        return room;
+        return Mono.from(collection.insertOne(room)).map(insertOneResult -> {
+            System.out.println(insertOneResult);
+            return room;
+        });
     }
 
     @Override
-    public List<Room> saveAll(List<Room> rooms) throws Throwable {
+    public Flux<Room> saveAll(List<Room> rooms) {
         rooms.forEach(p -> p.setId(new ObjectId()));
-        ObservableSubscriber subscriber = new ObservableSubscriber<>();
-        collection.insertMany(rooms).subscribe(subscriber);
-        subscriber.await();
-        return rooms;
+        return Flux.from(collection.insertMany(rooms))
+                .map(insertManyResult -> {
+                    System.out.println("how many times? \n\n"+insertManyResult);
+                    System.out.println(rooms);
+                    return null;
+                });
     }
 
     @Override
-    public Optional<Room> findById(ObjectId roomId) throws Throwable {
-        ObservableSubscriber<Room> subscriber = new ObservableSubscriber<>();
-        collection.find(eq("_id", roomId)).subscribe(subscriber);
-        subscriber.await();
-        return subscriber.getReceived().isEmpty() ?
-                Optional.empty() : Optional.of(subscriber.getReceived().get(0));
+    public Mono<Room> findById(ObjectId roomId) {
+        return Mono.from(collection.find(eq("_id", roomId)));
     }
 
     @Override
-    public List<Room> findManyById(List<ObjectId> objectIds) {
-        return null;
+    public Flux<Room> findManyById(List<ObjectId> objectIds) {
+        return Flux.empty();
     }
 
     @Override
     public Page<Room> findAll(Pageable pageable) {
-        return null;
+        return Page.empty();
     }
 
     @Override
-    public Room update(Room person) throws Throwable {
-        ObservableSubscriber subscriber = new ObservableSubscriber<>();
-        collection.findOneAndReplace(
-                eq("_id", person.getId()), person).subscribe(subscriber);
-        subscriber.await();
-        return subscriber.getReceived().isEmpty() ? null : (Room) subscriber.getReceived().get(0);
+    public Mono<Room> update(Room person) {
+        return Mono.from(collection.findOneAndReplace(
+                eq("_id", person.getId()), person)
+        ).map(room -> {
+            System.out.println(room);
+            System.out.println(person);
+            return person;
+        });
     }
 
     @Override
-    public long deleteById(String id) throws Throwable {
-        ObservableSubscriber subscriber = new ObservableSubscriber<>();
-        collection.deleteOne(eq("_id", new ObjectId(id))).subscribe(subscriber);
-        subscriber.await();
-        return subscriber.getReceived().isEmpty() ? 1 : 0;
+    public Mono<Long> deleteById(ObjectId id) {
+        return Mono.from(collection.deleteOne(eq("_id", id)))
+                .map(deleteResult -> {
+            System.out.println(deleteResult);
+            return deleteResult.getDeletedCount();
+        });
     }
 
     @Override
-    public long deleteManyById(List<String> ids) {
-        return 0;
-    }
-
-    private List<ObjectId> mapToObjectIds(List<String> ids) {
-        return ids.stream().map(ObjectId::new).collect(Collectors.toList());
+    public Mono<Long> deleteManyById(List<ObjectId> ids) {
+        return Mono.just(0L);
     }
 }

@@ -1,7 +1,10 @@
 package ota.reactive.room.repositories;
 
+import org.bson.types.ObjectId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.io.Serializable;
 import java.util.List;
@@ -13,30 +16,30 @@ public interface BaseRepository<T, ID extends Serializable> {
 
     // CREATE
 
-    T save(T entity) throws Throwable;
+    Mono<T> save(T entity);
 
-    List<T> saveAll(List<T> persons) throws Throwable;
+    Flux<T> saveAll(List<T> persons);
 
     // READ
 
     // long count();
 
-    Optional<T> findById(ID id) throws Throwable;
+    Mono<T> findById(ID id);
 
-    List<T> findManyById(List<ID> ids);
+    Flux<T> findManyById(List<ID> ids);
 
     Page<T> findAll(Pageable pageable);
 
     // UPDATE
 
-    T update(T entity) throws Throwable;
+    Mono<T> update(T entity);
 
 //    long updateAll(List<T> persons);
 
     // DELETE
 
-    long deleteById(String id) throws Throwable;
+    Mono<Long> deleteById(ID id);
 
-    long deleteManyById(List<String> ids);
+    Mono<Long> deleteManyById(List<ID> ids);
 
 }

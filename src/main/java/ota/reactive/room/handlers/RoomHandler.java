@@ -45,62 +45,37 @@ public class RoomHandler {
 
     public Mono<ServerResponse> hello(ServerRequest request) {
         return request.bodyToMono(Room.class)
-                .doOnNext(room -> {
-                    try {
-                        System.out.println(room);
-                        roomRepository.save(room);
-                    } catch (Throwable ex) {
-                        System.out.println("\n\n\nFAILED TO SAVE\n\n\n");
-                        System.out.println(ex.getMessage());
-                    }
-                })
+                .flatMap(roomRepository::save)
                 .flatMap(room -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
                         .body(BodyInserters.fromValue(room)));
     }
 
     public Mono<ServerResponse> query(ServerRequest request) {
-        Optional<String> id = request.queryParam("id");
-        Room r = new Room();
-        try {
-            if (!id.isPresent()) {
-                throw new Exception("Not found");
-            }
-            r = roomRepository.findById(new ObjectId(id.get())).orElseThrow();
-        } catch (Throwable ex) {
-            System.out.println("\n\n\nFAILED TO FIND\n\n\n");
-            System.out.println(ex.getMessage());
-        }
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(r));
+        return Mono.just(request.queryParam("id"))
+                .flatMap(optionalId -> {
+                    if (optionalId.isPresent() && ObjectId.isValid(optionalId.get())) {
+                        return roomRepository.findById(new ObjectId(optionalId.get()));
+                    }
+                    return Mono.empty();
+                }).flatMap(room -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .body(BodyInserters.fromValue(room)));
     }
 
     public Mono<ServerResponse> change(ServerRequest request) {
         return request.bodyToMono(Room.class)
-                .doOnNext(room -> {
-                    try {
-                        System.out.println(room);
-                        roomRepository.update(room);
-                    } catch (Throwable ex) {
-                        System.out.println("\n\n\nFAILED TO UPDATE\n\n\n");
-                        System.out.println(ex.getMessage());
-                    }
-                })
+                .flatMap(room -> roomRepository.update(room))
                 .flatMap(room -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
                         .body(BodyInserters.fromValue(room)));
     }
 
     public Mono<ServerResponse> bye(ServerRequest request) {
-        Optional<String> id = request.queryParam("id");
-        long r = -1;
-        try {
-            if (id.isPresent()) {
-                r = roomRepository.deleteById(id.get());
-            }
-        } catch (Throwable ex) {
-            System.out.println("\n\n\nFAILED TO DELETE\n\n\n");
-            System.out.println(ex.getMessage());
-        }
-        return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(Map.of("val", r)));
+        return Mono.just(request.queryParam("id"))
+                .flatMap(optionalId -> {
+                    if (optionalId.isPresent() && ObjectId.isValid(optionalId.get())) {
+                        return roomRepository.deleteById(new ObjectId(optionalId.get()));
+                    }
+                    return Mono.just(0L);
+                }).flatMap(delCount -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                        .body(BodyInserters.fromValue(Map.of("val", delCount))));
     }
 }
