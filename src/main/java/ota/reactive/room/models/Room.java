@@ -16,7 +16,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @ToString
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Document
+@Document(collection = "rooms")
 public class Room {
 
     @JsonSerialize(using = ToStringSerializer.class)
