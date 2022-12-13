@@ -3,8 +3,10 @@ package ota.reactive.room.config;
 import com.mongodb.*;
 import com.mongodb.reactivestreams.client.MongoClient;
 import com.mongodb.reactivestreams.client.MongoClients;
+import com.mongodb.reactivestreams.client.MongoDatabase;
 import org.bson.codecs.configuration.CodecRegistry;
 import org.bson.codecs.pojo.PojoCodecProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +19,9 @@ public class MongoConnectionSetup {
 
     @Value("${spring.data.mongodb.uri}")
     private String connectionString;
+
+    @Value("${spring.data.database}")
+    private String databaseName;
 
 
 
@@ -39,5 +44,10 @@ public class MongoConnectionSetup {
                 .build();
     }
 
+    @Bean
+    @Autowired
+    public MongoDatabase getDatabase(MongoClient mongoClient) {
+        return mongoClient.getDatabase(databaseName);
+    }
 
 }
