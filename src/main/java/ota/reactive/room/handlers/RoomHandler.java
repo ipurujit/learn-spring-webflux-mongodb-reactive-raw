@@ -10,7 +10,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 
 import ota.reactive.room.models.Room;
 
-import ota.reactive.room.repositories.RoomRepository;
+import ota.reactive.room.repositories.ReactiveRoomRepository;
 import reactor.core.publisher.Mono;
 
 import java.util.Map;
@@ -28,7 +28,7 @@ public class RoomHandler {
      */
 
     @Autowired
-    private RoomRepository roomRepository;
+    private ReactiveRoomRepository roomRepository;
 
     public Mono<ServerResponse> helloWorld(ServerRequest request) {
         Room r = new Room("211", "Presidential suite");
@@ -45,13 +45,14 @@ public class RoomHandler {
 
     public Mono<ServerResponse> hello(ServerRequest request) {
         return request.bodyToMono(Room.class)
-                .doOnNext(room -> {
+                .flatMap(room -> {
                     try {
                         System.out.println(room);
-                        roomRepository.save(room);
+                        return roomRepository.save(room);
                     } catch (Throwable ex) {
                         System.out.println("\n\n\nFAILED TO SAVE\n\n\n");
                         System.out.println(ex.getMessage());
+                        return null;
                     }
                 })
                 .flatMap(room -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
@@ -60,30 +61,39 @@ public class RoomHandler {
 
     public Mono<ServerResponse> query(ServerRequest request) {
         Optional<String> id = request.queryParam("id");
-        Room r = new Room();
         try {
-            if (!id.isPresent()) {
+            if (id.isEmpty()) {
                 throw new Exception("Not found");
             }
-            r = roomRepository.findById(new ObjectId(id.get())).orElseThrow();
-        } catch (Throwable ex) {
+            return roomRepository.findById(new ObjectId(id.get()))
+                    .flatMap(room -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                            .body(BodyInserters.fromValue(room)));
+        } catch (Exception ex) {
             System.out.println("\n\n\nFAILED TO FIND\n\n\n");
             System.out.println(ex.getMessage());
         }
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(r));
+                .body(BodyInserters.fromValue(new Room()));
     }
 
     public Mono<ServerResponse> change(ServerRequest request) {
         return request.bodyToMono(Room.class)
-                .doOnNext(room -> {
+                .flatMap(room -> {
                     try {
                         System.out.println(room);
-                        roomRepository.update(room);
-                    } catch (Throwable ex) {
+                        return roomRepository.existsById(room.getId())
+                                        .flatMap(val -> {
+                                            System.out.println("FOUND DATA =="+val);
+                                            if (val) {
+                                                return roomRepository.save(room);
+                                            }
+                                            return Mono.empty();
+                                        });
+                    } catch (Exception ex) {
                         System.out.println("\n\n\nFAILED TO UPDATE\n\n\n");
                         System.out.println(ex.getMessage());
                     }
+                    return Mono.empty();
                 })
                 .flatMap(room -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
                         .body(BodyInserters.fromValue(room)));
@@ -91,16 +101,17 @@ public class RoomHandler {
 
     public Mono<ServerResponse> bye(ServerRequest request) {
         Optional<String> id = request.queryParam("id");
-        long r = -1;
         try {
             if (id.isPresent()) {
-                r = roomRepository.deleteById(id.get());
+                return roomRepository.deleteById(new ObjectId(id.get()))
+                        .flatMap(delVal -> ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
+                                .body(BodyInserters.fromValue(Map.of("val", true))));
             }
-        } catch (Throwable ex) {
+        } catch (Exception ex) {
             System.out.println("\n\n\nFAILED TO DELETE\n\n\n");
             System.out.println(ex.getMessage());
         }
         return ServerResponse.ok().contentType(MediaType.APPLICATION_JSON)
-                .body(BodyInserters.fromValue(Map.of("val", r)));
+                .body(BodyInserters.fromValue(Map.of("val", false)));
     }
 }
